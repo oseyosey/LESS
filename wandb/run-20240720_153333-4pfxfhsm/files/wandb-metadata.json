@@ -1,0 +1,290 @@
+{
+    "os": "Linux-5.4.0-181-generic-x86_64-with-glibc2.31",
+    "python": "3.12.4",
+    "heartbeatAt": "2024-07-20T19:33:33.776495",
+    "startedAt": "2024-07-20T19:33:33.344610",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--do_train",
+        "True",
+        "--max_seq_length",
+        "2048",
+        "--use_fast_tokenizer",
+        "True",
+        "--lr_scheduler_type",
+        "linear",
+        "--warmup_ratio",
+        "0.0",
+        "--weight_decay",
+        "0.0",
+        "--evaluation_strategy",
+        "steps",
+        "--eval_steps",
+        "1",
+        "--logging_steps",
+        "1",
+        "--save_strategy",
+        "no",
+        "--num_train_epochs",
+        "4",
+        "--bf16",
+        "True",
+        "--tf32",
+        "False",
+        "--fp16",
+        "False",
+        "--overwrite_output_dir",
+        "True",
+        "--report_to",
+        "wandb",
+        "--optim",
+        "adamw_torch",
+        "--seed",
+        "0",
+        "--percentage",
+        "1.0",
+        "--save_strategy",
+        "epoch",
+        "--lora",
+        "True",
+        "--lora_r",
+        "4",
+        "--lora_alpha",
+        "512",
+        "--lora_dropout",
+        "0.1",
+        "--lora_target_modules",
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "--learning_rate",
+        "2e-05",
+        "--per_device_train_batch_size",
+        "2",
+        "--ddp_find_unused_parameters",
+        "False",
+        "--gradient_accumulation_steps",
+        "1",
+        "--data_dir",
+        "data",
+        "--model_name_or_path",
+        "meta-llama/Llama-2-7b-hf",
+        "--output_dir",
+        "../out/llama2-7b-p0.05-lora-seed6",
+        "--percentage",
+        "0.05",
+        "--data_seed",
+        "6",
+        "--validation_task_name",
+        "mmlu",
+        "--analysis_dataset",
+        "mmlu",
+        "--include_validation",
+        "false",
+        "--train_files",
+        "data/train/processed/flan_v2/flan_v2_data.jsonl",
+        "data/train/processed/cot/cot_data.jsonl",
+        "data/train/processed/dolly/dolly_data.jsonl",
+        "data/train/processed/oasst1/oasst1_data.jsonl"
+    ],
+    "state": "running",
+    "program": "-m less.train.train",
+    "codePathLocal": null,
+    "git": {
+        "remote": "https://github.com/oseyosey/LESS.git",
+        "commit": "bfeb54480991c4d9dd9a4d6a523d3a8633ffee0a"
+    },
+    "email": "jyin27@jhu.edu",
+    "root": "/share/kuleshov/jy928/compute_optimal_data_selection/LESS",
+    "host": "rush-compute-02.tech.cornell.edu",
+    "username": "jy928",
+    "executable": "/share/kuleshov/jy928/envs/LESS-2/bin/python",
+    "cpu_count": 32,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 852.6447499999999,
+        "min": 800.0,
+        "max": 2401.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 800.381,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 954.788,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.185,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.832,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.777,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.409,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.847,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.799,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.309,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.813,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.634,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.256,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.203,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.765,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.573,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.764,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.181,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.389,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.785,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1311.846,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 900.935,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.209,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 873.792,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.768,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.307,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.155,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.822,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.807,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.412,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.232,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 800.797,
+            "min": 800.0,
+            "max": 2401.0
+        },
+        {
+            "current": 801.198,
+            "min": 800.0,
+            "max": 2401.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 79.9609375,
+            "used": 46.32908248901367
+        }
+    },
+    "gpu": "NVIDIA RTX A6000",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA RTX A6000",
+            "memory_total": 51527024640
+        }
+    ],
+    "memory": {
+        "total": 503.55036544799805
+    }
+}

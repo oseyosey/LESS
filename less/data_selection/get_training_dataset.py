@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from datasets import load_dataset
 
+from less.data_selection.get_validation_dataset import get_dataset
+
 
 @contextlib.contextmanager
 def temp_seed(seed):
@@ -23,6 +25,20 @@ def get_training_dataset(train_files: List[str], tokenizer, max_seq_length, samp
 
     raw_datasets = load_raw_dataset(
         train_files, sample_percentage=sample_percentage, seed=seed)
+    lm_datasets = encode_data(
+        raw_datasets, tokenizer, max_seq_length)
+    return lm_datasets
+
+def get_training_dataset_with_validation(train_files: List[str], tokenizer, max_seq_length, sample_percentage=1.0, seed=0, val_task_name="None", **kwargs):
+    """ get training dataset with a specified seed alongside the validation dataset from a particular task."""
+
+    raw_datasets = load_raw_dataset(
+        train_files, sample_percentage=sample_percentage, seed=seed)
+    
+    breakpoint()
+    val_datasets = get_dataset(val_task_name, **kwargs)
+    #TODO: Concat train and val datasets.
+
     lm_datasets = encode_data(
         raw_datasets, tokenizer, max_seq_length)
     return lm_datasets

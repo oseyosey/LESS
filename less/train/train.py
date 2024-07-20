@@ -15,15 +15,21 @@ from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from transformers import (AutoModelForCausalLM, AutoTokenizer,
                           DataCollatorForSeq2Seq, HfArgumentParser, Trainer,
                           set_seed)
+from huggingface_hub import login
 
-from less.data_selection.get_training_dataset import get_training_dataset
+from accelerate import Accelerator
+from accelerate import dispatch_model, infer_auto_device_map
+from accelerate.utils import get_balanced_memory
+
+from less.data_selection.get_training_dataset import get_training_dataset, get_training_dataset_with_validation
 from less.train.data_arguments import DataArguments, get_data_statistics
 from less.train.model_arguments import ModelArguments, add_padding_to_tokenizer
 from less.train.training_arguments import TrainingArguments
 
+
 logger = logging.getLogger(__name__)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+# os.environ["WANDB_DISABLED"] = "true"
 
 def main():
     parser = HfArgumentParser(
@@ -60,20 +66,37 @@ def main():
     logger.info(f"Training parameters {training_args}")
     logger.info(f"Model parameters {model_args}")
     logger.info(f"Dataset parameters {data_args}")
+    logger.info(f"Number of GPUS (cuda) {torch.cuda.device_count()}")
+
+    # login set up
+    login(token = "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")
 
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
+    # Device map
+    device_index = Accelerator().process_index
+    device_map = {"": device_index}
+
+    tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, device_map=device_map)
+
     # Load training dataset
-    train_dataset = get_training_dataset(data_args.train_files,
-                                         tokenizer=tokenizer,
-                                         max_seq_length=data_args.max_seq_length,
-                                         sample_percentage=data_args.percentage,
-                                         seed=data_args.sample_data_seed)
+    ##TODO: Set-up hypothesis 1
+    if training_args.include_validation:
+        train_dataset = get_training_dataset_with_validation(data_args.train_files,
+                                            tokenizer=tokenizer,
+                                            max_seq_length=data_args.max_seq_length,
+                                            sample_percentage=data_args.percentage,
+                                            seed=data_args.sample_data_seed)
+    else:
+        train_dataset = get_training_dataset(data_args.train_files,
+                                            tokenizer=tokenizer,
+                                            max_seq_length=data_args.max_seq_length,
+                                            sample_percentage=data_args.percentage,
+                                            seed=data_args.sample_data_seed)
 
     model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path, torch_dtype=model_args.torch_dtype)
+        model_args.model_name_or_path, torch_dtype=model_args.torch_dtype, device_map=device_map)
     add_padding_to_tokenizer(tokenizer)
 
     # resize embeddings if needed (e.g. for LlamaTokenizer)
@@ -123,6 +146,7 @@ def main():
                        for p in model.parameters() if p.requires_grad)
     logger.info(f"trainable model_params: {model_params}")
 
+    #TODO: Add support for evaluation dataset druing training. 
     analysis_dataset = None
     if training_args.analysis_mode:
         from less.data_selection.get_validation_dataset import get_dataset
@@ -144,6 +168,39 @@ def main():
     elif not dist.is_initialized():
         print(model)
 
+    # accelerator = Accelerator()
+    # model = accelerator.prepare(model)
+
+    # # Data Parallel Training
+    # world_size = int(os.environ.get("WORLD_SIZE", 1))
+    # ddp = world_size != 1
+    # if not ddp and torch.cuda.device_count() > 1:
+    #     model.is_parallelizable = True
+    #     model.model_parallel = True
+    
+    # #* Enable Naive Pipeline Parallel *#
+    # num_of_gpus = torch.cuda.device_count()
+    # if num_of_gpus > 1:
+    #     print("Enabling Naive Pipeline Parallel")
+    #     max_memory = get_balanced_memory(
+    #         model,
+    #         max_memory=None,
+    #         no_split_module_classes=["LlamaDecoderLayer", "LlamaMLP"],
+    #         dtype=model_args.torch_dtype,
+    #         low_zero=False,
+    #     )
+
+    # device_map = infer_auto_device_map(
+    #     model,
+    #     max_memory=max_memory,
+    #     no_split_module_classes=["LlamaDecoderLayer", "LlamaMLP"],
+    #     dtype=model_args.torch_dtype
+    # )
+
+    # model = dispatch_model(model, device_map=device_map)
+
+
+    ##TODO: inspect if they evaluate it based on their performance. 
     trainer = Trainer(
         model=model,
         args=training_args,

@@ -53,8 +53,9 @@ fsdp_config = {
 
 @dataclass
 class TrainingArguments(TA):
+    #? Why is it set to false? This seems to be the opposite claim in the paper. 
     analysis_mode: float = field(
-        default=False,
+        default=True, 
         metadata={
             "help": (
                 "Whether to run in analysis mode. "
@@ -74,6 +75,14 @@ class TrainingArguments(TA):
         metadata={
             "help": (
                 "The dataset to use for training. "
+            )
+        },
+    )
+    include_validation: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "For testing Hypothesis 1: Including D_val in training improve the performance s.t. performance is greater than 5 percent LESS"
             )
         },
     )

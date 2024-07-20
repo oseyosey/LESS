@@ -1,0 +1,5 @@
+name: LESS-2
+channels:
+  - defaults
+  - conda-forge
+prefix: /share/kuleshov/jy928/anaconda3/envs/LESS-2

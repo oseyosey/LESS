@@ -38,6 +38,14 @@ class DataArguments:
     percentage: float = field(
         default=1.0, metadata={"help": ("Sampling percentage for each dataset")},
     )
+    validation_task_name: str = field(
+        default=None,
+        metadata={"help": ("The task name for the validation set (to be included in your training dataset)")},
+    )
+    data_dir: str = field(
+        default="data",
+        metadata={"help": ("The directory where the datasets are stored")},
+    )
 
 
 def get_data_statistics(lm_datasets):
