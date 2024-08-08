@@ -1,9 +1,14 @@
 source eval.sh
 
+DIR=$1 # model directory
+DATA_DIR=$2 # evaluation data directory
+output_dir=$3 # output directory (if needed)
+TYPE=$4
+
 # main evaluation function
 eval_mmlu() {
-    mdir=$1
-    set_save_dir $mdir mmlu
+    mdir=$DIR
+    set_save_dir $mdir mmlu $output_dir
     mkdir -p $save_dir
     cmd="python -m eval.mmlu.run_eval \
     --ntrain 5 \
@@ -18,8 +23,8 @@ eval_mmlu() {
 
 # evaluate the validation set, which is not supported yet
 valid_mmlu() {
-    mdir=$1
-    type=$2
+    mdir=$DIR
+    type=$TYPE
     set_valid_dir $mdir mmlu
     mkdir -p $save_dir
     cmd="python -m eval.mmlu.run_eval \
@@ -34,18 +39,32 @@ valid_mmlu() {
     eval "$cmd" 2>&1 | tee $save_dir/log.txt
 }
 
-# extract the results
+# # extract the results
+# extract_mmlu() {
+#     mdir=$DIR
+#     set_save_dir $mdir mmlu
+#     result=$(jq .average_acc $save_dir/metrics.json)
+#     result=$(echo "$result * 100" | bc)
+#     echo $result
+# }
+
+# extract the results (not using jq but python)
 extract_mmlu() {
-    mdir=$1
+    mdir=$DIR
     set_save_dir $mdir mmlu
-    result=$(jq .average_acc $save_dir/metrics.json)
-    result=$(echo "$result * 100" | bc)
+    result=$(python3 -c "
+import json
+with open('$save_dir/metrics.json') as f:
+    data = json.load(f)
+    result = data.get('average_acc', 0) * 100
+print(result)
+")
     echo $result
 }
 
 # extract the results for the validation set
 extract_valid_mmlu() {
-    mdir=$1
+    mdir=$DIR
     set_valid_dir $mdir mmlu
     result=$(jq .average_acc $save_dir/metrics.json)
     result=$(echo "$result * 100" | bc)

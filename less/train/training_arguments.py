@@ -86,6 +86,48 @@ class TrainingArguments(TA):
             )
         },
     )
+    batch_size: int = field(
+        default=128, 
+        metadata={
+            "help": (
+                "Batch size for training. "
+            )
+        },
+    )
+    load_best_model_at_end: bool = field(
+        default=True,
+        metadata={
+            "help": (
+                "Whether or not to load the best model found during training at the end of training"
+            )
+        },
+    )
+    eval_on_start: bool = field(
+        default=True,
+        metadata={
+            "help": (
+                "Whether or not to load the best model found during training at the end of training"
+            )
+        },
+    )
+    save_steps_per_epoch: int = field(
+        default=1,
+        metadata={
+            "help": (
+                "The amount of times you want to save the model per epoch"
+            )
+        },
+    )
+    val_only: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "Whether to only run validation point on the model"
+            )
+        },
+    )
+
+    
 
     def __post_init__(self):
         if isinstance(self.fsdp_config, str):

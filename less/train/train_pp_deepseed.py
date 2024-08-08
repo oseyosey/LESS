@@ -15,8 +15,6 @@ from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from transformers import (AutoModelForCausalLM, AutoTokenizer,
                           DataCollatorForSeq2Seq, HfArgumentParser, Trainer,
                           set_seed)
-from transformers.optimization import AdamW
-
 from huggingface_hub import login
 
 from accelerate import Accelerator
@@ -33,6 +31,8 @@ logger = logging.getLogger(__name__)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # os.environ["WANDB_DISABLED"] = "true"
 os.environ["WANDB__SERVICE_WAIT"] = "300"
+
+# DS_SKIP_CUDA_CHECK=1 #* for addressing deepseed + offload error. 
 
 def main():
     parser = HfArgumentParser(
@@ -81,31 +81,20 @@ def main():
 
     # Load training dataset
     if training_args.include_validation:
-        #* Method 1 (Training with Validation Dataset)
+        #* Set-up hypothesis 1
         train_dataset = get_training_dataset_with_validation(data_args.train_files,
                                             tokenizer=tokenizer,
                                             max_seq_length=data_args.max_seq_length,
                                             sample_percentage=data_args.percentage,
-                                            # seed=data_args.sample_data_seed, #? why is this sample_data_seed (42) but not data_seed? 
-                                            seed = training_args.data_seed,
+                                            seed=data_args.sample_data_seed,
                                             val_task_name=training_args.analysis_dataset,
                                             data_dir=data_args.data_dir)
-    elif training_args.val_only:
-        #* Method 2 (Training with Validation Dataset Only)
-        from less.data_selection.get_validation_dataset import get_dataset
-        train_dataset = get_dataset(training_args.analysis_dataset,
-                                    data_dir=data_args.data_dir,
-                                    tokenizer=tokenizer,
-                                    max_length=data_args.max_seq_length)
     else:
-        #* Method 0 (Training without Validation Dataset)
         train_dataset = get_training_dataset(data_args.train_files,
                                             tokenizer=tokenizer,
                                             max_seq_length=data_args.max_seq_length,
                                             sample_percentage=data_args.percentage,
-                                            # seed=data_args.sample_data_seed,
-                                            seed = training_args.data_seed,
-                                            data_shuffle=data_args.data_shuffle)
+                                            seed=data_args.sample_data_seed)
 
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path, torch_dtype=model_args.torch_dtype)
@@ -149,6 +138,7 @@ def main():
         train_dataset = train_dataset.remove_columns(
             ["dataset", "id", "messages"])
             
+
     for index in random.sample(range(len(train_dataset)), 1):
         logger.info(
             f"Sample {index} of the training set: {train_dataset[index]}.")
@@ -157,7 +147,7 @@ def main():
                        for p in model.parameters() if p.requires_grad)
     logger.info(f"trainable model_params: {model_params}")
 
-    #*: Added support for evaluation dataset druing training. 
+    #TODO: Add support for evaluation dataset druing training. 
     analysis_dataset = None
     if training_args.analysis_mode:
         from less.data_selection.get_validation_dataset import get_dataset
@@ -166,93 +156,37 @@ def main():
                                        tokenizer=tokenizer,
                                        max_length=data_args.max_seq_length)
 
-    # for testing if the model can go through full length
-    # import torch
-    # from datasets import Dataset
-    # input_ids = [torch.randint(0, 32000, (2048, )) for _ in range(10000)]
-    # attention_mask = [torch.ones(2048, ) for _ in range(10000)]
-    # train_dataset = Dataset.from_dict({"input_ids": input_ids, "labels": input_ids, "attention_mask": attention_mask})
-
     if dist.is_initialized() and dist.get_rank() == 0:
         print(model)
     elif not dist.is_initialized():
         print(model)
 
     # Adjust Gradient Accumulation Steps based on number of gpus
-    training_args.gradient_accumulation_steps = training_args.batch_size // ( torch.cuda.device_count() * training_args.per_device_train_batch_size)
+    # Assume m_batch_size_per_device = 1
+    training_args.per_device_train_batch_size = 1
+    training_args.gradient_accumulation_steps = training_args.batch_size // (training_args.per_device_train_batch_size * torch.cuda.device_count())
     logger.info(f"Gradient Accumulation Steps: {training_args.gradient_accumulation_steps}")
     
     # enabling automatic fitting of batch size
     # training_args.auto_find_batch_size = True
 
-    #* Train & Eval Steps Calculation
-    total_steps = len(train_dataset) * training_args.num_train_epochs // training_args.batch_size
-    train_steps = total_steps // ( training_args.save_steps_per_epoch * training_args.num_train_epochs) 
-    training_args.eval_steps = train_steps * training_args.save_steps_per_epoch # perform evaluation per epoch
-    training_args.save_steps = train_steps # save checkpoints every 0.2 epochs
-    logger.info(f"Number of Training Epochs: {training_args.num_train_epochs}")
-    logger.info(f"Save steps: {training_args.save_steps}")
-
-    # #* Configure optimizer and LR scheduler
-    # optimizer = AdamW(model.parameters(), lr=training_args.learning_rate, weight_decay=training_args.weight_decay)
-
-    # if training_args.lr_scheduler_type == 'cosine':
-    #     #* set the cosine scheduler cycle length to match the total training steps.
-    #     lr_scheduler = get_cosine_schedule_with_warmup(
-    #         optimizer,
-    #         num_warmup_steps=int(total_steps*training_args.warmup_ratio),
-    #         num_training_steps=total_steps,
-    #     )
-    # else:
-    #     lr_scheduler = None
-    # if training_args.lr_scheduler_type == "cosine":
-
-    #? Not sure if this just does the job as line 185-197
-    # if training_args.lr_scheduler_type == "cosine":
-    #     training_args.set_lr_scheduler(name="cosine", warmup_ratio=training_args.warmup_ratio)
-
-
+    ##TODO: inspect if they evaluate it based on their performance. 
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=analysis_dataset,
         tokenizer=tokenizer,
-        # optimizers = (optimizer, lr_scheduler),
         data_collator=DataCollatorForSeq2Seq(
             tokenizer=tokenizer, model=model, padding="longest")
     )
 
-    def contains_checkpoint_directories(output_dir):
-        entries = os.listdir(output_dir)
-        
-        has_subdirs = False
-        for entry in entries:
-            entry_path = os.path.join(output_dir, entry)
-            if os.path.isdir(entry_path):
-                has_subdirs = True
-                break
-
-        if not has_subdirs:
-            return False
-        
-        for entry in entries:
-            entry_path = os.path.join(output_dir, entry)
-            if os.path.isdir(entry_path) and "checkpoint" in entry:
-                return True
-        return False
-    
-    # Evaluate from the start
-    logger.info("Evaluating Model from the start...")
-    metrics_init = trainer.evaluate()
-    logger.info(f"Initial Evaluation Metrics: {metrics_init}")
-
     # Training
-    if os.path.exists(training_args.output_dir) and contains_checkpoint_directories(training_args.output_dir):
-        logger.info("Resuming training from checkpoint...")
-        train_result = trainer.train(resume_from_checkpoint=True)
+    train_result = trainer.train()
+    if os.path.exists(training_args.out_dir) and os.listdir(training_args.out_dir):
+        trainer.train(resume_from_checkpoint=True)
     else:
-        train_result = trainer.train()
+        trainer.train()
     
     trainer.save_model()  # Saves the tokenizer too for easy upload
 
@@ -270,8 +204,7 @@ def main():
             training_args.output_dir, "pytorch_model_fsdp.bin")
         os.remove(pytorch_model_path) if os.path.exists(
             pytorch_model_path) else None
-        
-        # remove the optimizer.pt, scheduler.pt, and fsdp.bin as well.
+
 
 if __name__ == "__main__":
     main()

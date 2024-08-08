@@ -6,7 +6,7 @@ import random
 import evaluate
 import numpy as np
 import torch
-import vllm
+# import vllm #* we will not use this for our evaluation.
 
 from eval.utils import (dynamic_import_function, generate_completions,
                         load_hf_lm_and_tokenizer, query_openai_chat_model)
@@ -42,7 +42,7 @@ def main(args):
     print("Loading data...")
 
     test_data = []
-    with open(os.path.join(args.data_dir, "tydiqa-goldp-v1.1-dev.json")) as fin:
+    with open(os.path.join(args.data_dir, "test/tydiqa-goldp-v1.1-dev.json")) as fin:
         dev_data = json.load(fin)
         for article in dev_data["data"]:
             for paragraph in article["paragraphs"]:
@@ -72,7 +72,7 @@ def main(args):
 
     if args.n_shot > 0:
         train_data_for_langs = {lang: [] for lang in data_languages}
-        with open(os.path.join(args.data_dir, "tydiqa-goldp-v1.1-train.json")) as fin:
+        with open(os.path.join(args.data_dir, "dev/tydiqa-goldp-v1.1-dev.json")) as fin: #* changed path from "tydiqa-goldp-v1.1-train.json" to "dev/tydiqa-goldp-v1.1-dev.json"
             train_data = json.load(fin)
             for article in train_data["data"]:
                 for paragraph in article["paragraphs"]:

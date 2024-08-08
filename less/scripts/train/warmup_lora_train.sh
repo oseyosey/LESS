@@ -19,12 +19,14 @@ train_files=("$data_dir/train/processed/flan_v2/flan_v2_data.jsonl"
 "$data_dir/train/processed/oasst1/oasst1_data.jsonl")
 
 # use fsdp for large models
-if [[ $model_path == "meta-llama/Llama-2-13b-hf" ]]; then
-    base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config llama2_13b_finetune"
-    elif [[ $model_path == "mistralai/Mistral-7B-v0.1" ]]; then
-    base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config mistral_7b_finetune"
-    elif [[ $model_path == "meta-llama/Llama-2-7b-hf" ]]; then
-    base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config llama2_7b_finetune"
+if [$number_of_gpus != "1"]; then
+    if [[ $model_path == "meta-llama/Llama-2-13b-hf" ]]; then
+        base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config llama2_13b_finetune"
+        elif [[ $model_path == "mistralai/Mistral-7B-v0.1" ]]; then
+        base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config mistral_7b_finetune"
+        elif [[ $model_path == "meta-llama/Llama-2-7b-hf" ]]; then
+        base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config llama2_7b_finetune"
+    fi
 fi
 
 training_args="$base_training_args \

@@ -131,3 +131,10 @@ dmypy.json
 # Data
 data/
 LESS/data/
+
+# WandB
+wandb/
+
+# Slurm
+scripts/
+evaluation/eval_scripts/

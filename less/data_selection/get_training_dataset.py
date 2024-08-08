@@ -4,7 +4,8 @@ from typing import List, Union
 
 import numpy as np
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
+import logging
 
 from less.data_selection.get_validation_dataset import get_dataset
 
@@ -20,32 +21,44 @@ def temp_seed(seed):
         np.random.set_state(state)
 
 
-def get_training_dataset(train_files: List[str], tokenizer, max_seq_length, sample_percentage=1.0, seed=0):
+def get_training_dataset(train_files: List[str], tokenizer, max_seq_length, sample_percentage=1.0, seed=0, data_shuffle=True):
     """ get training dataset with a specified seed """
 
     raw_datasets = load_raw_dataset(
-        train_files, sample_percentage=sample_percentage, seed=seed)
+        train_files, sample_percentage=sample_percentage, seed=seed, shuffle=data_shuffle)
     lm_datasets = encode_data(
         raw_datasets, tokenizer, max_seq_length)
     return lm_datasets
 
-def get_training_dataset_with_validation(train_files: List[str], tokenizer, max_seq_length, sample_percentage=1.0, seed=0, val_task_name="None", **kwargs):
+def get_training_dataset_with_validation(train_files: List[str], tokenizer, max_seq_length, sample_percentage=1.0, seed=0, val_task_name="None", data_dir="None"):
     """ get training dataset with a specified seed alongside the validation dataset from a particular task."""
 
     raw_datasets = load_raw_dataset(
         train_files, sample_percentage=sample_percentage, seed=seed)
     
-    breakpoint()
-    val_datasets = get_dataset(val_task_name, **kwargs)
-    #TODO: Concat train and val datasets.
+    val_datasets = get_dataset(val_task_name, data_dir=data_dir, tokenizer=tokenizer, max_length=max_seq_length)
 
     lm_datasets = encode_data(
         raw_datasets, tokenizer, max_seq_length)
+    
+    lm_datasets = lm_datasets.remove_columns(
+            ["dataset", "id", "messages"])
+    
+    #* Concat train and val datasets.
+    val_datasets_dict = val_datasets.to_dict()
+    lm_datasets_dict = lm_datasets.to_dict()
+    
+    for key in lm_datasets_dict.keys():
+        lm_datasets_dict[key].extend(val_datasets_dict[key])
+
+    lm_datasets = Dataset.from_dict(lm_datasets_dict)
+
     return lm_datasets
 
 
-def load_raw_dataset(train_files: Union[List[str], str], sample_size=None, sample_percentage=1.0, seed=0):
+def load_raw_dataset(train_files: Union[List[str], str], sample_size=None, sample_percentage=1.0, seed=0, shuffle=True):
     """ load raw dataset """
+    """ Set Shuffle = True when order of the data matters (e.g. when using data with data-selection method like BM25, LESS, PPL, etc.)"""
     if isinstance(train_files, str):
         train_files = [train_files]
     processed_datasets = load_dataset(
@@ -57,8 +70,14 @@ def load_raw_dataset(train_files: Union[List[str], str], sample_size=None, sampl
 
     if sample_size == len(processed_datasets):
         return processed_datasets  # not shuffle
+    
+    if shuffle is False:
+        print("Sampling without shuffle.")
+        index = list(range(sample_size))
+        return processed_datasets.select(index) # not shuffle, sampling according to the score (highest to lowest, assuming the top samples are the highest score).
 
     with temp_seed(seed):
+        print(f"Sampling with shuffle, random seed: {seed}.")
         index = np.random.permutation(len(processed_datasets))[:sample_size]
 
     sampled_dataset = processed_datasets.select(index)

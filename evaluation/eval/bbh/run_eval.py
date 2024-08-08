@@ -8,7 +8,7 @@ import re
 import evaluate
 import torch
 import tqdm
-import vllm
+# import vllm #* not used in our setting
 
 from eval.utils import (dynamic_import_function, generate_completions,
                         load_hf_lm_and_tokenizer, query_openai_chat_model)
@@ -50,7 +50,7 @@ def main(args):
     random.seed(42)
 
     all_tasks = {}
-    task_files = glob.glob(os.path.join(args.data_dir, "bbh", "*.json"))
+    task_files = glob.glob(os.path.join(args.data_dir, "test", "*.json")) #* change from "bbh" to "test"
     for task_file in tqdm.tqdm(task_files, desc="Loading tasks"):
         with open(task_file, "r") as f:
             task_name = os.path.basename(task_file).split(".")[0]
@@ -81,6 +81,10 @@ def main(args):
                         new_prompt_fields.append(prompt_field)
                 task_prompt = "\n\n".join(new_prompt_fields)
             all_prompts[task_name] = task_prompt
+
+    print(all_tasks.keys())
+
+    print(all_prompts.keys())
 
     if not args.eval_valid:
         assert set(all_tasks.keys()) == set(all_prompts.keys(

@@ -46,6 +46,9 @@ class DataArguments:
         default="data",
         metadata={"help": ("The directory where the datasets are stored")},
     )
+    data_shuffle: bool = field(
+        default=True, metadata={"help": ("Whether to shuffle the data.")},
+    )
 
 
 def get_data_statistics(lm_datasets):

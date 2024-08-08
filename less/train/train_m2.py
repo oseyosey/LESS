@@ -15,8 +15,6 @@ from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from transformers import (AutoModelForCausalLM, AutoTokenizer,
                           DataCollatorForSeq2Seq, HfArgumentParser, Trainer,
                           set_seed)
-from transformers.optimization import AdamW
-
 from huggingface_hub import login
 
 from accelerate import Accelerator
@@ -80,32 +78,29 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
 
     # Load training dataset
-    if training_args.include_validation:
-        #* Method 1 (Training with Validation Dataset)
-        train_dataset = get_training_dataset_with_validation(data_args.train_files,
-                                            tokenizer=tokenizer,
-                                            max_seq_length=data_args.max_seq_length,
-                                            sample_percentage=data_args.percentage,
-                                            # seed=data_args.sample_data_seed, #? why is this sample_data_seed (42) but not data_seed? 
-                                            seed = training_args.data_seed,
-                                            val_task_name=training_args.analysis_dataset,
-                                            data_dir=data_args.data_dir)
-    elif training_args.val_only:
-        #* Method 2 (Training with Validation Dataset Only)
-        from less.data_selection.get_validation_dataset import get_dataset
-        train_dataset = get_dataset(training_args.analysis_dataset,
-                                    data_dir=data_args.data_dir,
-                                    tokenizer=tokenizer,
-                                    max_length=data_args.max_seq_length)
-    else:
-        #* Method 0 (Training without Validation Dataset)
-        train_dataset = get_training_dataset(data_args.train_files,
-                                            tokenizer=tokenizer,
-                                            max_seq_length=data_args.max_seq_length,
-                                            sample_percentage=data_args.percentage,
-                                            # seed=data_args.sample_data_seed,
-                                            seed = training_args.data_seed,
-                                            data_shuffle=data_args.data_shuffle)
+    # if training_args.include_validation:
+    #     #* Set-up hypothesis 1
+    #     train_dataset = get_training_dataset_with_validation(data_args.train_files,
+    #                                         tokenizer=tokenizer,
+    #                                         max_seq_length=data_args.max_seq_length,
+    #                                         sample_percentage=data_args.percentage,
+    #                                         seed=data_args.sample_data_seed,
+    #                                         val_task_name=training_args.analysis_dataset,
+    #                                         data_dir=data_args.data_dir)
+    # else:
+    #     train_dataset = get_training_dataset(data_args.train_files,
+    #                                         tokenizer=tokenizer,
+    #                                         max_seq_length=data_args.max_seq_length,
+    #                                         sample_percentage=data_args.percentage,
+    #                                         seed=data_args.sample_data_seed)
+    
+    # M2: training validation data only on top of full training data.
+    from less.data_selection.get_validation_dataset import get_dataset
+    train_dataset = get_dataset(training_args.analysis_dataset,
+                                data_dir=data_args.data_dir,
+                                tokenizer=tokenizer,
+                                max_length=data_args.max_seq_length)
+
 
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path, torch_dtype=model_args.torch_dtype)
@@ -149,6 +144,7 @@ def main():
         train_dataset = train_dataset.remove_columns(
             ["dataset", "id", "messages"])
             
+
     for index in random.sample(range(len(train_dataset)), 1):
         logger.info(
             f"Sample {index} of the training set: {train_dataset[index]}.")
@@ -169,6 +165,7 @@ def main():
     # for testing if the model can go through full length
     # import torch
     # from datasets import Dataset
+
     # input_ids = [torch.randint(0, 32000, (2048, )) for _ in range(10000)]
     # attention_mask = [torch.ones(2048, ) for _ in range(10000)]
     # train_dataset = Dataset.from_dict({"input_ids": input_ids, "labels": input_ids, "attention_mask": attention_mask})
@@ -187,38 +184,17 @@ def main():
 
     #* Train & Eval Steps Calculation
     total_steps = len(train_dataset) * training_args.num_train_epochs // training_args.batch_size
-    train_steps = total_steps // ( training_args.save_steps_per_epoch * training_args.num_train_epochs) 
-    training_args.eval_steps = train_steps * training_args.save_steps_per_epoch # perform evaluation per epoch
-    training_args.save_steps = train_steps # save checkpoints every 0.2 epochs
-    logger.info(f"Number of Training Epochs: {training_args.num_train_epochs}")
-    logger.info(f"Save steps: {training_args.save_steps}")
-
-    # #* Configure optimizer and LR scheduler
-    # optimizer = AdamW(model.parameters(), lr=training_args.learning_rate, weight_decay=training_args.weight_decay)
-
-    # if training_args.lr_scheduler_type == 'cosine':
-    #     #* set the cosine scheduler cycle length to match the total training steps.
-    #     lr_scheduler = get_cosine_schedule_with_warmup(
-    #         optimizer,
-    #         num_warmup_steps=int(total_steps*training_args.warmup_ratio),
-    #         num_training_steps=total_steps,
-    #     )
-    # else:
-    #     lr_scheduler = None
-    # if training_args.lr_scheduler_type == "cosine":
-
-    #? Not sure if this just does the job as line 185-197
-    # if training_args.lr_scheduler_type == "cosine":
-    #     training_args.set_lr_scheduler(name="cosine", warmup_ratio=training_args.warmup_ratio)
+    training_args.train_steps = total_steps // ( 5 * training_args.num_train_epochs)
+    training_args.eval_steps = training_args.train_steps * 5
 
 
+    ##TODO: inspect if they evaluate it based on their performance. 
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=analysis_dataset,
         tokenizer=tokenizer,
-        # optimizers = (optimizer, lr_scheduler),
         data_collator=DataCollatorForSeq2Seq(
             tokenizer=tokenizer, model=model, padding="longest")
     )

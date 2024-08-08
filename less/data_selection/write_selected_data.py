@@ -7,7 +7,7 @@ import torch
 def parse_args():
     argparser = argparse.ArgumentParser(
         description='Script for selecting the data for training')
-    argparser.add_argument('--train_file_names', type=str,
+    argparser.add_argument('--train_file_names', type=str, # this could be just a scoring from different data selection methods
                            nargs='+', help='The path to the score file')
     argparser.add_argument('--train_files', type=str, nargs='+',
                            help='The path of the training file that corresponds to the score file')

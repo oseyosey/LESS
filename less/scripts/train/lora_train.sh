@@ -6,6 +6,9 @@ train_files=$1
 model_path=$2
 job_name=$3
 
+header="torchrun --nproc_per_node 2 --nnodes 1 \
+-m less.train.train"
+
 output_dir=../out/${job_name}
 if [[ ! -d $output_dir ]]; then
     mkdir -p $output_dir
