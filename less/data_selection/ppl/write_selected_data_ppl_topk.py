@@ -1,6 +1,6 @@
 import argparse
 import os
-from tqdm import tqdm
+
 import torch
 
 from less.data_selection.get_training_dataset import load_raw_dataset
@@ -21,8 +21,8 @@ def parse_args():
                            default=None, help='The maximum number of samples')
     argparser.add_argument('--percentage', type=float, default=None,
                            help='The percentage of the data to be selected')
-    argparser.add_argument('--less_seed', type=int, default=3,
-                           help='Seed number used in LESS data selection')
+    argparser.add_argument('--epochs_num', type=int, 
+                          help='The number of epochs for training the model')
 
     args = argparser.parse_args()
 
@@ -37,28 +37,6 @@ def count_lines(filename):
     return line_count
 
 
-def rearrange_datasets(lm_datasets_dict, less_index):
-    tasks = less_index['tasks']
-    selected_task_ids = less_index['selected_task_ids']
-    
-    # Create the ordered ids based on the combination of tasks and selected_task_ids
-    ordered_ids = [f"{task}_{task_id}" for task, task_id in zip(tasks, selected_task_ids)]
-    
-    ranked_lm_datasets_dict = {'dataset': [], 'id': [], 'messages': []}
-    
-    # Re-rank the datasets based on the ordered ids
-    for ordered_id in tqdm(ordered_ids):
-        try:
-            index = lm_datasets_dict['id'].index(ordered_id)
-            ranked_lm_datasets_dict['dataset'].append(lm_datasets_dict['dataset'][index])
-            ranked_lm_datasets_dict['id'].append(lm_datasets_dict['id'][index])
-            ranked_lm_datasets_dict['messages'].append(lm_datasets_dict['messages'][index])
-        except ValueError:
-            print(f"ID {ordered_id} not found in lm_datasets_dict")
-    
-    return ranked_lm_datasets_dict
-
-
 if __name__ == "__main__":
     args = parse_args()
     assert len(args.train_file_names) == len(args.train_files)
@@ -68,22 +46,19 @@ if __name__ == "__main__":
 
     lm_datasets = load_raw_dataset(args.train_files, sample_percentage=1.0)
     lm_datasets_dict = lm_datasets.to_dict()
-
+    
     # for key in lm_datasets_dict.keys():
     #     lm_datasets_dict[key].extend(val_datasets_dict[key])
 
     for target_task in args.target_task_names:
         output_path = os.path.join(args.output_path, target_task)
 
-        score_paths = os.path.join(output_path, f"{target_task}_less_score_seed{args.less_seed}.pt") 
-        index_paths = os.path.join(output_path, f"{target_task}_less_index_seed{args.less_seed}.pt")
+        score_paths = os.path.join(output_path, f"{target_task}_ppl_score.pt") 
         
-        less_scores = torch.load(score_paths, map_location=device)
-        less_index = torch.load(index_paths, map_location=device)
+        ppl_scores = torch.load(score_paths, map_location=device)
+        ppl_scores_tensor = torch.from_numpy(ppl_scores)
 
-        less_scores_tensor = torch.from_numpy(less_scores)
-
-        total_samples = less_scores.shape[0]
+        total_samples = ppl_scores.shape[0]
 
         if args.percentage is not None:
             args.max_samples = int(args.percentage * total_samples)
@@ -92,9 +67,14 @@ if __name__ == "__main__":
         else:
             data_amount_name = f"num{args.max_samples}"
 
-        selected_lm_datasets_dict = rearrange_datasets(lm_datasets_dict, less_index)
+        # sort the scores and output the corresponding data indexf from lowest ppl scores to highest ppl scores
+        topk_scores, topk_indices = torch.topk(ppl_scores_tensor, args.max_samples, largest=False) #* largest=False, as we want to select the lowest PPL scores. 
+
+        # Create a subset of lm_datasets based on the topk_indices
+        selected_lm_datasets_dict = {key: [lm_datasets_dict[key][i] for i in topk_indices] for key in lm_datasets_dict.keys()}
 
         selected_lm_datasets = Dataset.from_dict(selected_lm_datasets_dict)
 
         # Save in JSON Lines format
-        selected_lm_datasets.to_json(f"{output_path}/{target_task}-train-p{args.percentage}-less-seed{args.less_seed}.jsonl")
+        selected_lm_datasets.to_json(f"{output_path}/{target_task}-train-p{args.percentage}-ppl-epoch{args.epochs_num}-top-k.jsonl")
+        

@@ -43,7 +43,7 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # Setup logging
+    #* Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
@@ -61,7 +61,7 @@ def main():
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-    # Log on each process the small summary:
+    #* Log on each process the small summary:
     logger.warning(
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
         + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.bf16}"
@@ -71,15 +71,15 @@ def main():
     logger.info(f"Dataset parameters {data_args}")
     logger.info(f"Total Number of GPUS (Cuda) {torch.cuda.device_count()}")
 
-    # login set up
+    #* login set up
     login(token = "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")
 
-    # Set seed before initializing model.
+    #* Set seed before initializing model.
     set_seed(training_args.seed)
 
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
 
-    # Load training dataset
+    #* Load training dataset
     if training_args.include_validation:
         #* Method 1 (Training with Validation Dataset)
         train_dataset = get_training_dataset_with_validation(data_args.train_files,
@@ -191,6 +191,9 @@ def main():
     training_args.eval_steps = train_steps * training_args.save_steps_per_epoch # perform evaluation per epoch
     training_args.save_steps = train_steps # save checkpoints every 0.2 epochs
     logger.info(f"Number of Training Epochs: {training_args.num_train_epochs}")
+    logger.info(f"Total Steps: {total_steps}")
+    logger.info(f"Train Steps: {train_steps}")
+    logger.info(f"Eval steps: {training_args.eval_steps}")
     logger.info(f"Save steps: {training_args.save_steps}")
 
     # #* Configure optimizer and LR scheduler
@@ -206,11 +209,6 @@ def main():
     # else:
     #     lr_scheduler = None
     # if training_args.lr_scheduler_type == "cosine":
-
-    #? Not sure if this just does the job as line 185-197
-    # if training_args.lr_scheduler_type == "cosine":
-    #     training_args.set_lr_scheduler(name="cosine", warmup_ratio=training_args.warmup_ratio)
-
 
     trainer = Trainer(
         model=model,
@@ -242,12 +240,13 @@ def main():
                 return True
         return False
     
-    # Evaluate from the start
-    logger.info("Evaluating Model from the start...")
-    metrics_init = trainer.evaluate()
-    logger.info(f"Initial Evaluation Metrics: {metrics_init}")
+    #* Evaluate from the start
+    #? not working for fsdp.
+    # logger.info("Evaluating Model from the start...")
+    # metrics_init = trainer.evaluate()
+    # logger.info(f"Initial Evaluation Metrics: {metrics_init}")
 
-    # Training
+    #* Training
     if os.path.exists(training_args.output_dir) and contains_checkpoint_directories(training_args.output_dir):
         logger.info("Resuming training from checkpoint...")
         train_result = trainer.train(resume_from_checkpoint=True)

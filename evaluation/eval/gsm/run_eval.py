@@ -4,7 +4,7 @@ import re
 import json
 import random
 import torch
-import vllm
+# import vllm
 import evaluate
 from eval.utils import (
     generate_completions,
@@ -79,6 +79,7 @@ def main(args):
     if args.model_name_or_path:
         print("Loading model and tokenizer...")
         if args.use_vllm:
+            #* not used in our study for now*#
             model = vllm.LLM(
                 model=args.model_name_or_path,
                 tokenizer=args.tokenizer_name_or_path if args.tokenizer_name_or_path else args.model_name_or_path,
@@ -149,11 +150,15 @@ def main(args):
         "prediction": pred
     } for example, output, pred in zip(test_data, outputs, predictions)]
 
-    with open(os.path.join(args.save_dir, f"predictions.jsonl"), "w") as fout:
+    if args.no_cot:
+        cot_postfix = "_no_cot"
+    else:
+        cot_postfix = "_cot"
+    with open(os.path.join(args.save_dir, f"predictions{cot_postfix}_{args.max_num_examples}.jsonl"), "w") as fout:
         for prediction in predictions:
             fout.write(json.dumps(prediction) + "\n") 
     
-    with open(os.path.join(args.save_dir, "metrics.json"), "w") as fout:
+    with open(os.path.join(args.save_dir, f"metrics{cot_postfix}_{args.max_num_examples}.json"), "w") as fout:
         json.dump({
             "exact_match": em_score
         }, fout, indent=4)

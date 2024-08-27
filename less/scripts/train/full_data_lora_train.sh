@@ -17,8 +17,11 @@ num_train_epochs=${12}
 save_steps_per_epoch=${13}
 
 ID=$(printf "%05d" $((10000 + RANDOM % 90000)))
-header="torchrun --master_port=$ID --nproc_per_node $number_of_gpus --nnodes 1 \
+# header="torchrun --master_port=$ID --nproc_per_node $number_of_gpus --nnodes 1 \
+# -m less.train.train"
+header="torchrun --standalone --nproc_per_node $number_of_gpus --nnodes 1 \
 -m less.train.train"
+
 
 output_dir=../out/${job_name}
 if [[ ! -d $output_dir ]]; then
@@ -31,7 +34,7 @@ train_files=("$data_dir/train/processed/flan_v2/flan_v2_data.jsonl"
 "$data_dir/train/processed/oasst1/oasst1_data.jsonl")
 
 # use fsdp for large models
-if [$number_of_gpus != "1"]; then
+if [[ $number_of_gpus != "1" ]]; then
     if [[ $model_path == "meta-llama/Llama-2-13b-hf" ]]; then
         base_training_args="$base_training_args --fsdp 'full_shard auto_wrap' --fsdp_config llama2_13b_finetune"
         elif [[ $model_path == "mistralai/Mistral-7B-v0.1" ]]; then

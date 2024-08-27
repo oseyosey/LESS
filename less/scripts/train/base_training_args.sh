@@ -19,7 +19,7 @@ export base_training_args="--do_train True \
 --weight_decay 0.0 \
 --evaluation_strategy steps \
 --eval_steps 0.25 \
---logging_steps 0.01 \
+--logging_steps 1 \
 --num_train_epochs 1 \
 --save_steps_per_epoch 1 \
 --bf16 True \
@@ -39,6 +39,6 @@ export base_training_args="--do_train True \
 --lora_target_modules q_proj k_proj v_proj o_proj \
 --learning_rate 2e-05 \
 --per_device_train_batch_size 1 \
---save_total_limit 5 \
+--save_total_limit 15 \
 --ddp_find_unused_parameters False \
 --gradient_accumulation_steps 32"

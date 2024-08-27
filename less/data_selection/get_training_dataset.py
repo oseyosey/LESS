@@ -69,12 +69,32 @@ def load_raw_dataset(train_files: Union[List[str], str], sample_size=None, sampl
         sample_size = int(len(processed_datasets) * sample_percentage)
 
     if sample_size == len(processed_datasets):
-        return processed_datasets  # not shuffle
+        if seed == 0:
+            return processed_datasets  # not shuffle
+        else:
+            with temp_seed(seed):
+                print(f"Shuffle seed: {seed}.")
+                index = np.random.permutation(len(processed_datasets))[:sample_size]
+                
+        return processed_datasets.select(index) # shuffle the full dataset
     
+    #? Inspect this.
     if shuffle is False:
-        print("Sampling without shuffle.")
-        index = list(range(sample_size))
-        return processed_datasets.select(index) # not shuffle, sampling according to the score (highest to lowest, assuming the top samples are the highest score).
+        if seed == 0:
+            print("No shuffle after top-k sampling is done")
+            index = list(range(sample_size))
+
+            ranked_processed_datasets = processed_datasets.select(index)  # sampling according to the score (highest to lowest, assuming the top samples are the highest score).
+            return ranked_processed_datasets
+        else:
+            print("Shuffle after top-k sampling is done")
+            index = list(range(sample_size))
+
+            ranked_processed_datasets = processed_datasets.select(index) 
+            with temp_seed(seed):
+                print("Random seed after top-k sampling: ", seed)
+                index_after_topk = np.random.permutation(len(ranked_processed_datasets))[:sample_size] # shuffle the top-k samples
+            return ranked_processed_datasets.select(index_after_topk) 
 
     with temp_seed(seed):
         print(f"Sampling with shuffle, random seed: {seed}.")

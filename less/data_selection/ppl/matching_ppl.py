@@ -26,6 +26,8 @@ argparser.add_argument('--start_index', type=int, default=0,
                        help='The start index of the data')
 argparser.add_argument('--end_index', type=int, default=270679,
                           help='The end index of the data')
+argparser.add_argument('--epochs_num', type=int, 
+                          help='The number of epochs for training the model')
 
 
 args = argparser.parse_args()
@@ -197,11 +199,15 @@ ppl_scores = []
 for idx in tqdm(range(len(raw_datasets['messages']))):
     input_text_encodings = tokenizer.encode(raw_messages[idx], return_tensors="pt")
     ppl, nll = compute_nll_ppl(model, input_text_encodings)
+    ppl_scores.append(ppl)
+
+import numpy
+ppl_scores_numpy = numpy.array(ppl_scores)
     
 output_dir = os.path.join(args.output_path, target_task_name)
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 output_file = os.path.join(
-    args.output_path, target_task_name, f"{target_task_name}_ppl_score.pt")
-torch.save(ppl_scores, output_file)
+    args.output_path, target_task_name, f"{target_task_name}_ppl_score_epoch{args.epochs_num}.pt")
+torch.save(ppl_scores_numpy, output_file)
 print("Saved less score to {}".format(output_file))
